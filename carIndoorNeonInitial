@@ -1,0 +1,102 @@
+#include <Adafruit_NeoPixel.h>
+
+const int nData = 6; // neopixel data pin
+const int button = 2;
+
+volatile int buttonState = 0; 
+volatile uint8_t index = 0;
+int lastButtonState = LOW;
+
+unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
+unsigned long debounceDelay = 10;    // the debounce time; increase if the output flickers
+
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(14, nData, NEO_GRB + NEO_KHZ800);
+
+void setup() {
+  pinMode(button, INPUT);
+  attachInterrupt(0, pin_ISR, FALLING); // ties the button presses to an interrupt
+  
+  strip.begin();
+  strip.show();
+  Serial.begin(9600); // for debugging
+}
+
+void loop() {
+  colorWipe(strip.Color(0, 0, 255), 50); // blue
+  Serial.println(index);
+  while (index != 0) { // switch case would be easier, I know
+    Serial.println(index);
+    if (index == 1)
+      colorWipe(strip.Color(255, 0, 0), 50); // red
+    else if (index == 2)
+      colorWipe(strip.Color(0, 255, 0), 50); // green
+    else if (index == 3)
+      rastaColorWipe();
+    else if (index > 3)
+      index = 0; 
+  }
+}
+
+// Fill the dots one after the other with a color
+// from Adafruit sample code
+void colorWipe(uint32_t c, uint8_t wait) {
+  for(uint16_t i=0; i<strip.numPixels(); i++) {
+    strip.setPixelColor(i, c);
+    strip.show();
+    delay(wait);
+  }
+}
+
+// red, green, yellow. SPECIFICALLY for 6 or 7 
+//  pixels per strip.
+// Try making it recursive, where i is passed.
+void rastaColorWipe() {
+  uint32_t red = strip.Color(255, 0, 0);
+  uint32_t green = strip.Color(0, 255, 0);
+  uint32_t yellow = strip.Color(255, 255, 0);
+  
+  for (uint16_t i=0; i<strip.numPixels(); i++) { // really poorly written, I know.
+    if (i < 3) {
+      strip.setPixelColor(i, red);
+    }
+    else if (i>2 && i<5) {
+      strip.setPixelColor(i, yellow);
+    }
+    else if (i>4 && i<7) {
+      strip.setPixelColor(i, green);
+    }
+    else if (i>6 && i<10){
+      strip.setPixelColor(i, red);
+    }
+    else if (i>9 && i<12) {
+      strip.setPixelColor(i, yellow);
+    }
+    else if (i>11 && i<14) {
+      strip.setPixelColor(i, green);
+    } // really poorly written, I know.
+  }
+  strip.show();
+  //delay(5000); 
+}
+void pin_ISR() { // for the interrupt
+  /*buttonState = digitalRead(button);
+  if (buttonState == HIGH)
+    index++;
+  */
+  int reading = digitalRead(button);
+  // If the switch changed, due to noise or pressing:
+  if (reading != lastButtonState) {
+    // reset the debouncing timer
+    lastDebounceTime = millis();
+  }
+
+  if ((millis() - lastDebounceTime) > debounceDelay) {   
+    // if the button state has changed:
+    if (reading != buttonState) {
+      buttonState = reading;
+    }
+  }
+  index++;
+  // save the reading. Next time through the loop, it'll be the lastButtonState:
+  lastButtonState = reading;
+}
